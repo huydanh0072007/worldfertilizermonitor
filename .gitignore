@@ -1,5 +1,7 @@
 node_modules/
+.npm-cache/
 .idea/
+
 dist/
 public/blog/
 public/countries/

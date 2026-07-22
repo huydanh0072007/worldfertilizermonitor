@@ -227,6 +227,19 @@ const LOW_KEYWORDS: KeywordMap = {
   'gdp': 'economic',
   'unemployment': 'economic',
   'regulation': 'economic',
+  'urea tender': 'economic',
+  'fertilizer tender': 'economic',
+  'plant turnaround': 'infrastructure',
+  'ammonia outage': 'infrastructure',
+  'export quota': 'economic',
+  'ciq inspection': 'economic',
+  'đạm phú mỹ': 'economic',
+  'đạm cà mau': 'economic',
+  'npk đầu trâu': 'economic',
+  'giá phân bón': 'economic',
+  'giá lúa gạo': 'economic',
+  'giá cà phê': 'economic',
+
 };
 
 const TECH_HIGH_KEYWORDS: KeywordMap = {

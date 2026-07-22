@@ -63,7 +63,10 @@ export const SOURCE_TYPES: Record<string, SourceType> = {
 
   // Market/Finance
   'CNBC': 'market', 'MarketWatch': 'market', 'Yahoo Finance': 'market',
-  'Financial Times': 'market',
+  'Financial Times': 'market', 'Argus Fertilizer': 'market', 'ICIS Fertilizer': 'market',
+  'SunSirs Urea': 'market', 'Báo Nông Nghiệp VN': 'market', 'Báo Công Thương': 'market',
+  'Đạm Phú Mỹ': 'market', 'Đạm Cà Mau': 'market', 'AgroInfo': 'gov', 'VFA Lúa Gạo': 'market',
+
 
   // Tech
   'Hacker News': 'tech', 'Ars Technica': 'tech', 'The Verge': 'tech',

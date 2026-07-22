@@ -1,0 +1,13 @@
+name = "worldmonitor-fertilizer-scraper"
+main = "src/index.js"
+compatibility_date = "2026-07-01"
+
+[triggers]
+crons = ["0 1 * * *"] # Run daily at 08:00 AM ICT (01:00 UTC)
+
+[vars]
+ENVIRONMENT = "production"
+
+[[kv_namespaces]]
+binding = "FERTILIZER_CACHE"
+id = "fertilizer_cache_kv_id"
