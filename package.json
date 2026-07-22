@@ -69,7 +69,7 @@
     "audit:convex-string-calls": "node scripts/audit-convex-string-calls.cjs",
     "audit:dodo-catalog": "node scripts/audit-dodo-catalog.cjs",
     "tauri": "tauri",
-    "preview": "vite preview",
+    "preview": "npm run build && wrangler dev",
     "test:e2e:full": "cross-env VITE_VARIANT=full playwright test",
     "test:e2e:tech": "cross-env VITE_VARIANT=tech playwright test",
     "test:e2e:finance": "cross-env VITE_VARIANT=finance playwright test",
@@ -111,11 +111,13 @@
     "desktop:package:windows:tech:sign": "node scripts/desktop-package.mjs --os windows --variant tech --sign",
     "desktop:package": "node scripts/desktop-package.mjs",
     "test:convex": "vitest run --config vitest.config.mts",
-    "test:convex:watch": "vitest --config vitest.config.mts"
+    "test:convex:watch": "vitest --config vitest.config.mts",
+    "deploy": "npm run build && wrangler deploy"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.7",
     "@bufbuild/buf": "^1.66.0",
+    "@cloudflare/vite-plugin": "^1.46.0",
     "@edge-runtime/vm": "^5.0.0",
     "@playwright/test": "^1.52.0",
     "@tauri-apps/cli": "^2.10.0",
@@ -140,7 +142,8 @@
     "typescript": "^5.7.2",
     "vite": "^6.0.7",
     "vite-plugin-pwa": "^1.2.0",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.0",
+    "wrangler": "^4.113.0"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.1",

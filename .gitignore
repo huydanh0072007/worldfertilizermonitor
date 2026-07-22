@@ -92,3 +92,7 @@ tmp/
 docs/plans/
 docs/brainstorms/
 playground-pricing.html
+
+.dev.vars*
+!.dev.vars.example
+!.env.example

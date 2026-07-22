@@ -18,6 +18,8 @@ import {
 // hand-maintained Set here had drifted ~138 domains from prod.
 import { isAllowedDomain } from './api/_rss-allowed-domain-match.js';
 
+import { cloudflare } from "@cloudflare/vite-plugin";
+
 // Env-dependent constants moved inside defineConfig function
 
 
@@ -888,175 +890,163 @@ export default defineConfig(({ mode }) => {
       // reload on every focus.
       __BUILD_HASH__: JSON.stringify(process.env.VERCEL_GIT_COMMIT_SHA ?? 'dev'),
     },
-    plugins: [
-      // Emit dist/build-hash.txt with the deployed SHA so the running bundle
-      // can fetch /build-hash.txt at tab-focus time and force-reload itself
-      // if it's running an older bundle (see src/bootstrap/stale-bundle-check.ts).
-      // Same-origin static asset, NOT under /api/* — installWebApiRedirect
-      // doesn't touch it, so the comparison reflects the web deployment.
-      {
-        name: 'wm-emit-build-hash',
-        apply: 'build',
-        generateBundle() {
-          this.emitFile({
-            type: 'asset',
-            fileName: 'build-hash.txt',
-            source: process.env.VERCEL_GIT_COMMIT_SHA ?? 'dev',
-          });
-        },
+    plugins: [// Emit dist/build-hash.txt with the deployed SHA so the running bundle
+    // can fetch /build-hash.txt at tab-focus time and force-reload itself
+    // if it's running an older bundle (see src/bootstrap/stale-bundle-check.ts).
+    // Same-origin static asset, NOT under /api/* — installWebApiRedirect
+    // doesn't touch it, so the comparison reflects the web deployment.
+    {
+      name: 'wm-emit-build-hash',
+      apply: 'build',
+      generateBundle() {
+        this.emitFile({
+          type: 'asset',
+          fileName: 'build-hash.txt',
+          source: process.env.VERCEL_GIT_COMMIT_SHA ?? 'dev',
+        });
       },
-      htmlVariantPlugin(activeMeta, activeVariant, isDesktopBuild),
-      !isDesktopBuild && dashboardHtmlOutputPlugin(),
-      // Variant subdomain SEO pages only make sense on the web deployment,
-      // which is always the 'full' build (variant selection is runtime by
-      // hostname). Desktop and dedicated VITE_VARIANT builds skip it.
-      !isDesktopBuild && activeVariant === 'full' && variantDashboardHtmlPlugin(),
-      polymarketPlugin(),
-      rssProxyPlugin(),
-      youtubeLivePlugin(),
-      gpsjamDevPlugin(),
-      sebufApiPlugin(),
-      brotliPrecompressPlugin(),
-      VitePWA({
-        registerType: 'autoUpdate',
-        injectRegister: false,
+    }, htmlVariantPlugin(activeMeta, activeVariant, isDesktopBuild), !isDesktopBuild && dashboardHtmlOutputPlugin(), // Variant subdomain SEO pages only make sense on the web deployment,
+    // which is always the 'full' build (variant selection is runtime by
+    // hostname). Desktop and dedicated VITE_VARIANT builds skip it.
+    !isDesktopBuild && activeVariant === 'full' && variantDashboardHtmlPlugin(), polymarketPlugin(), rssProxyPlugin(), youtubeLivePlugin(), gpsjamDevPlugin(), sebufApiPlugin(), brotliPrecompressPlugin(), VitePWA({
+      registerType: 'autoUpdate',
+      injectRegister: false,
 
-        includeAssets: [
-          'favico/favicon.ico',
-          'favico/apple-touch-icon.png',
-          'favico/favicon-32x32.png',
+      includeAssets: [
+        'favico/favicon.ico',
+        'favico/apple-touch-icon.png',
+        'favico/favicon-32x32.png',
+      ],
+      // Manifest install icons stay advertised in manifest.webmanifest, but
+      // they are fetched on demand instead of forced into first-visit SW
+      // precache with the rest of the dashboard shell.
+      includeManifestIcons: false,
+
+      manifest: {
+        name: `${activeMeta.siteName} - ${activeMeta.subject}`,
+        short_name: activeMeta.shortName,
+        description: activeMeta.description,
+        start_url: '/dashboard',
+        scope: '/',
+        display: 'standalone',
+        orientation: 'any',
+        theme_color: '#0a0f0a',
+        background_color: '#0a0f0a',
+        categories: activeMeta.categories,
+        icons: [
+          { src: '/favico/android-chrome-192x192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/favico/android-chrome-512x512.png', sizes: '512x512', type: 'image/png' },
+          { src: '/favico/android-chrome-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
-        // Manifest install icons stay advertised in manifest.webmanifest, but
-        // they are fetched on demand instead of forced into first-visit SW
-        // precache with the rest of the dashboard shell.
-        includeManifestIcons: false,
+      },
 
-        manifest: {
-          name: `${activeMeta.siteName} - ${activeMeta.subject}`,
-          short_name: activeMeta.shortName,
-          description: activeMeta.description,
-          start_url: '/dashboard',
-          scope: '/',
-          display: 'standalone',
-          orientation: 'any',
-          theme_color: '#0a0f0a',
-          background_color: '#0a0f0a',
-          categories: activeMeta.categories,
-          icons: [
-            { src: '/favico/android-chrome-192x192.png', sizes: '192x192', type: 'image/png' },
-            { src: '/favico/android-chrome-512x512.png', sizes: '512x512', type: 'image/png' },
-            { src: '/favico/android-chrome-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-          ],
-        },
+      workbox: {
+        globPatterns: ['**/*.{js,css,ico,png,svg,woff2}'],
+        globIgnores: [
+          '**/ml*.js',
+          '**/onnx*.wasm',
+          '**/locale-*.js',
+          '**/clerk-*.js',
+          // Fonts are fetched only when their stylesheet applies. Precache
+          // would pull every local weight into the first mobile visit.
+          '**/*.woff2',
+          // Keep off-page/static-heavy public assets out of the dashboard's
+          // first-visit precache. The small root favicons above remain
+          // explicit includeAssets entries.
+          'pro/**',
+          'favico/**',
+          'textures/**',
+          // #4891: blog OG covers + post images are generated into the prod
+          // build (absent locally), and the png glob was precaching all ~40
+          // of them (~700KB) on every first dashboard visit — and again on
+          // each SW update after a blog deploy. Blog pages fetch their own
+          // images on demand; the dashboard never needs them.
+          'blog/**',
+        ],
+        // globe.gl + three.js grows main bundle past the 2 MiB default limit
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+        navigateFallback: null,
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
+        // Web Push handler (Phase 6). importScripts runs in the SW
+        // context; /push-handler.js is a static file copied from
+        // public/ and attaches 'push' + 'notificationclick' listeners.
+        importScripts: ['/push-handler.js'],
 
-        workbox: {
-          globPatterns: ['**/*.{js,css,ico,png,svg,woff2}'],
-          globIgnores: [
-            '**/ml*.js',
-            '**/onnx*.wasm',
-            '**/locale-*.js',
-            '**/clerk-*.js',
-            // Fonts are fetched only when their stylesheet applies. Precache
-            // would pull every local weight into the first mobile visit.
-            '**/*.woff2',
-            // Keep off-page/static-heavy public assets out of the dashboard's
-            // first-visit precache. The small root favicons above remain
-            // explicit includeAssets entries.
-            'pro/**',
-            'favico/**',
-            'textures/**',
-            // #4891: blog OG covers + post images are generated into the prod
-            // build (absent locally), and the png glob was precaching all ~40
-            // of them (~700KB) on every first dashboard visit — and again on
-            // each SW update after a blog deploy. Blog pages fetch their own
-            // images on demand; the dashboard never needs them.
-            'blog/**',
-          ],
-          // globe.gl + three.js grows main bundle past the 2 MiB default limit
-          maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
-          navigateFallback: null,
-          skipWaiting: true,
-          clientsClaim: true,
-          cleanupOutdatedCaches: true,
-          // Web Push handler (Phase 6). importScripts runs in the SW
-          // context; /push-handler.js is a static file copied from
-          // public/ and attaches 'push' + 'notificationclick' listeners.
-          importScripts: ['/push-handler.js'],
+        runtimeCaching: [
+          {
+            urlPattern: ({ request }: { request: Request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'html-navigation',
+              networkTimeoutSeconds: 5,
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+          {
+            urlPattern: ({ url, sameOrigin }: { url: URL; sameOrigin: boolean }) =>
+              sameOrigin && /^\/api\//.test(url.pathname),
+            handler: 'NetworkOnly',
+            method: 'GET',
+          },
+          {
+            urlPattern: ({ url, sameOrigin }: { url: URL; sameOrigin: boolean }) =>
+              sameOrigin && /^\/api\//.test(url.pathname),
+            handler: 'NetworkOnly',
+            method: 'POST',
+          },
+          {
+            urlPattern: ({ url, sameOrigin }: { url: URL; sameOrigin: boolean }) =>
+              sameOrigin && /^\/rss\//.test(url.pathname),
+            handler: 'NetworkOnly',
+            method: 'GET',
+          },
+          {
+            urlPattern: ({ url }: { url: URL }) =>
+              url.pathname.endsWith('.pmtiles') ||
+              url.hostname.endsWith('.r2.dev') ||
+              url.hostname === 'build.protomaps.com',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'pmtiles-ranges',
+              expiration: { maxEntries: 500, maxAgeSeconds: 30 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            urlPattern: /^https:\/\/protomaps\.github\.io\//,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'protomaps-assets',
+              expiration: { maxEntries: 100, maxAgeSeconds: 365 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            urlPattern: /\/assets\/locale-.*\.js$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'locale-files',
+              expiration: { maxEntries: 20, maxAgeSeconds: 30 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/i,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'images',
+              expiration: { maxEntries: 100, maxAgeSeconds: 7 * 24 * 60 * 60 },
+            },
+          },
+        ],
+      },
 
-          runtimeCaching: [
-            {
-              urlPattern: ({ request }: { request: Request }) => request.mode === 'navigate',
-              handler: 'NetworkFirst',
-              options: {
-                cacheName: 'html-navigation',
-                networkTimeoutSeconds: 5,
-                cacheableResponse: { statuses: [200] },
-              },
-            },
-            {
-              urlPattern: ({ url, sameOrigin }: { url: URL; sameOrigin: boolean }) =>
-                sameOrigin && /^\/api\//.test(url.pathname),
-              handler: 'NetworkOnly',
-              method: 'GET',
-            },
-            {
-              urlPattern: ({ url, sameOrigin }: { url: URL; sameOrigin: boolean }) =>
-                sameOrigin && /^\/api\//.test(url.pathname),
-              handler: 'NetworkOnly',
-              method: 'POST',
-            },
-            {
-              urlPattern: ({ url, sameOrigin }: { url: URL; sameOrigin: boolean }) =>
-                sameOrigin && /^\/rss\//.test(url.pathname),
-              handler: 'NetworkOnly',
-              method: 'GET',
-            },
-            {
-              urlPattern: ({ url }: { url: URL }) =>
-                url.pathname.endsWith('.pmtiles') ||
-                url.hostname.endsWith('.r2.dev') ||
-                url.hostname === 'build.protomaps.com',
-              handler: 'NetworkFirst',
-              options: {
-                cacheName: 'pmtiles-ranges',
-                expiration: { maxEntries: 500, maxAgeSeconds: 30 * 24 * 60 * 60 },
-                cacheableResponse: { statuses: [0, 200] },
-              },
-            },
-            {
-              urlPattern: /^https:\/\/protomaps\.github\.io\//,
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'protomaps-assets',
-                expiration: { maxEntries: 100, maxAgeSeconds: 365 * 24 * 60 * 60 },
-                cacheableResponse: { statuses: [0, 200] },
-              },
-            },
-            {
-              urlPattern: /\/assets\/locale-.*\.js$/i,
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'locale-files',
-                expiration: { maxEntries: 20, maxAgeSeconds: 30 * 24 * 60 * 60 },
-                cacheableResponse: { statuses: [0, 200] },
-              },
-            },
-            {
-              urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/i,
-              handler: 'StaleWhileRevalidate',
-              options: {
-                cacheName: 'images',
-                expiration: { maxEntries: 100, maxAgeSeconds: 7 * 24 * 60 * 60 },
-              },
-            },
-          ],
-        },
-
-        devOptions: {
-          enabled: false,
-        },
-      }),
-    ],
+      devOptions: {
+        enabled: false,
+      },
+    }), cloudflare()],
     resolve: {
       alias: {
         '@': resolve(__dirname, 'src'),
