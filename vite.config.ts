@@ -252,9 +252,10 @@ function htmlVariantPlugin(activeMeta: VariantMeta, activeVariant: string, isDes
       if (activeVariant !== 'full') {
         result = result.replace(
           /if\(v\)document\.documentElement\.dataset\.variant=v;/,
-          `v='${activeVariant}';document.documentElement.dataset.variant=v;`
+          `if(!v)v='${activeVariant}';if(v)document.documentElement.dataset.variant=v;`
         );
       }
+
 
       // Desktop CSP: inject localhost wildcard for dynamic sidecar port.
       // Web builds intentionally exclude localhost to avoid exposing attack surface.
