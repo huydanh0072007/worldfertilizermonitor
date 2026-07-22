@@ -305,9 +305,15 @@ function dashboardHtmlOutputPlugin(): Plugin {
         dashboardHtml.source = deferDashboardStylesheetLinks(dashboardHtml.source, bundle);
       }
       bundle['dashboard.html'] = dashboardHtml;
+      this.emitFile({
+        type: 'asset',
+        fileName: 'index.html',
+        source: dashboardHtml.source,
+      });
     },
   };
 }
+
 
 // Emit dashboard-<variant>.html siblings of dashboard.html for the variant
 // subdomains (#4996). The web deployment serves the 'full' build to every
